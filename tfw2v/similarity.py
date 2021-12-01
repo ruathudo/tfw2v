@@ -1,3 +1,4 @@
+from logging import error
 import os
 import itertools
 import pickle
@@ -7,7 +8,7 @@ import numpy as np
 from multiprocessing import cpu_count
 
 from gensim.models import TfidfModel
-from gensim.corpora import Dictionary
+from gensim.corpora import Dictionary, dictionary
 from gensim.utils import simple_preprocess
 from gensim.models.fasttext import FastText
 from gensim.models import Word2Vec
@@ -19,21 +20,42 @@ class TFW2V:
     def __init__(self):
 
         self.wv = None
-        self.df = None
+        self.se = None
         self.vecs = None
         self.dictionary = None
         self.result = None
 
 
-    def _preprocessing(self, text_list, stopwords=None):
-        df = pd.DataFrame(text_list, columns="text")
-        tokens = df['text'].apply(simple_preprocess, max_len=50)
+    def run(self, text, wv, stopwords=None, min_tfidf=0.1, lim_tk=20, alpha=0.1, lim_most=1):
+        # preprocess the text
+        se, tokens = self._preprocessing(text, stopwords)
+        # train tfidf model
+        dictionary, vecs = self._train_tfidf(tokens)
+
+        self.se = se
+        self.dictionary = dictionary
+        self.vecs = vecs
+
+        self.result = self._enrich_tfidf(wv, min_tfidf=min_tfidf, lim_tk=lim_tk, alpha=alpha, lim_most=lim_most)
+
+        return self.result
+
+
+    def _preprocessing(self, text, stopwords):
+        if type(text) is list:
+            se = pd.Series(text)
+        elif type(text) is pd.Series:
+            se = pd.Series(text.to_list())    #copy as new series
+        else:
+            raise Exception("The text must be in List type or pandas Series type!")
+
+
+        tokens = se.apply(simple_preprocess, max_len=50)
         # remove stopwords
         if stopwords:
             tokens = tokens.apply(lambda x: [w for w in x if w not in stopwords])
 
-        self.df = df
-        return tokens
+        return se, tokens
 
     def _train_tfidf(self, tokens):
         # tokens is series data type of tokenized text of each document
@@ -50,14 +72,11 @@ class TFW2V:
         # dictionary.save(os.path.join(model_dir, 'dictionary.dict'))
         print('trained tf-idf')
 
-        self.dictionary = dictionary
-        self.vecs = vecs
-
         return dictionary, vecs
 
 
-    def _train_w2v(self, text, size=100, epochs=20, save_path=None):
-            
+    def train_w2v(self, text, size=100, epochs=20):
+
         sents = text.apply(split_sentences)
 
         flatten_sents = pd.Series(itertools.chain.from_iterable(sents.tolist()))
@@ -69,19 +88,17 @@ class TFW2V:
         model.build_vocab(sentences=token_sents)
         model.train(sentences=token_sents, total_examples=len(token_sents), epochs=epochs)
 
-        if save_path:
-            model.save(os.path.join(save_path))
+        # if save_path:
+        #     model.save(os.path.join(save_path))
 
         print('trained word2vec')
-
-        self.wv = model
 
         return model
 
 
-    def _enrich_tfidf(self, vecs, dictionary, wv, min_tfidf=0.1, lim_tk=20, alpha=0.1, lim_most=1):
-        new_vecs = []
-        
+    def _enrich_tfidf(self, wv, min_tfidf=0.1, lim_tk=20, alpha=0.1, lim_most=1):
+        vecs = self.vecs
+        dictionary = self.dictionary
         corpus_size = len(vecs)
         
         sim_index = SparseMatrixSimilarity(vecs, num_features=len(dictionary), num_best=int(corpus_size*lim_most))
@@ -135,15 +152,14 @@ class TFW2V:
             new_sim_docs = sorted(new_sim_docs, key=lambda x: x[1], reverse=True)
             result[doc_id] = new_sim_docs
 
-        self.result = result
         return result
 
 
     def most_similar(self, idx, k=10):
         # map text with the similar docs given a doc id
         
-        indices = [idx] + [x[0] for x in self.result[idx]]
+        indices = [x[0] for x in self.result[idx]]
         # convert text to dataframe
-        sub = self.df.iloc[indices]
+        sub = self.se.iloc[indices][:k]
         return sub
 
