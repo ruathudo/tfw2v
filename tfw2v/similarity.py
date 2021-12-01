@@ -1,16 +1,12 @@
 from logging import error
-import os
 import itertools
-import pickle
 import pandas as pd
-import numpy as np
 
 from multiprocessing import cpu_count
 
 from gensim.models import TfidfModel
-from gensim.corpora import Dictionary, dictionary
+from gensim.corpora import Dictionary
 from gensim.utils import simple_preprocess
-from gensim.models.fasttext import FastText
 from gensim.models import Word2Vec
 from gensim.similarities import SparseMatrixSimilarity
 from gensim.summarization.textcleaner import split_sentences
@@ -26,7 +22,7 @@ class TFW2V:
         self.result = None
 
 
-    def run(self, text, wv, stopwords=None, min_tfidf=0.1, lim_tk=20, alpha=0.1, lim_most=1):
+    def run(self, text, wv, stopwords=None, min_tfidf=0.1, lim_token=20, alpha=0.1, lim_most=1):
         # preprocess the text
         se, tokens = self._preprocessing(text, stopwords)
         # train tfidf model
@@ -36,7 +32,7 @@ class TFW2V:
         self.dictionary = dictionary
         self.vecs = vecs
 
-        self.result = self._enrich_tfidf(wv, min_tfidf=min_tfidf, lim_tk=lim_tk, alpha=alpha, lim_most=lim_most)
+        self.result = self._enrich_tfidf(wv, min_tfidf=min_tfidf, lim_token=lim_token, alpha=alpha, lim_most=lim_most)
 
         return self.result
 
@@ -96,7 +92,7 @@ class TFW2V:
         return model
 
 
-    def _enrich_tfidf(self, wv, min_tfidf=0.1, lim_tk=20, alpha=0.1, lim_most=1):
+    def _enrich_tfidf(self, wv, min_tfidf=0.1, lim_token=20, alpha=0.1, lim_most=1):
         vecs = self.vecs
         dictionary = self.dictionary
         corpus_size = len(vecs)
@@ -115,7 +111,7 @@ class TFW2V:
             #limit_num = int(frac * len(vec))
             tokens = sorted(vec, key=lambda x: x[1], reverse=True) # (token_id, tf_score)
             filterred_tokens = list(filter(lambda x: x[1] <= min_tfidf, tokens))
-            tokens = filterred_tokens if len(filterred_tokens) else tokens[:lim_tk]
+            tokens = filterred_tokens if len(filterred_tokens) else tokens[:lim_token]
             
             sim_docs = sim_index[vec]
             
@@ -132,7 +128,7 @@ class TFW2V:
                 #sim_limit =  int(frac * len(sim_vec))
                 sim_tokens = sorted(sim_vec, key=lambda x: x[1], reverse=True) # (token_id, tf_score)
                 filterred_sim_tokens = list(filter(lambda x: x[1] <= min_tfidf, sim_tokens))
-                sim_tokens = filterred_sim_tokens if len(filterred_sim_tokens) else sim_tokens[:lim_tk]
+                sim_tokens = filterred_sim_tokens if len(filterred_sim_tokens) else sim_tokens[:lim_token]
                 
                 sim_words = [dictionary[x[0]] for x in sim_tokens]
                 
