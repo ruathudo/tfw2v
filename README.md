@@ -23,6 +23,7 @@ text = [
 ]
 
 # We support passing a list of stopwords for text processing
+# Although, this is optional.
 stopwords = ["the", "a", "of"]
 
 # init tfw2v model instance
@@ -33,15 +34,28 @@ model = TFW2V()
 
 w2v = model.train_w2v(size=100, epochs=5)
 
+# Word embedding model can be saved to the user defined path:
+w2v.save("path/to/model")
+
 # now, run the process, the model will train TFIDF and using pre-trained w2v to enhence the result
 
 result = model.run(text, w2v, stopwords, min_tfidf=0.1, lim_token=20, alpha=0.1, lim_most=0.3)
 
-# the result is the dictionary with key is the document index, and value is the list of similar doc indexes sorted desc.
-# Eg: result[0] = [5, 3, 8, 10....]
-# Given a doc index, we can get the most similar docs included their text:
+# the result is the dictionary with key is the document index, and value is the list of similar doc indexes and similarity score sorted desc.
+# Eg: result[0] = [(5, 0.9), (3, 0.85), (8, 0.81), (10, 0.76),...]
+
+# To get the top 10 most similar docs for given ID 7: result[7][:10]
+
+# Given a doc index, we can also get the most similar docs included their text:
 # Eg: the given doc index is 43, we want most 10 similar docs
+# It will return the similar docs included their text
 sim_docs = model.most_similar(43, k=10)
+
+# output is in pandas Serires format, which can be easily viewed:
+sim_docs.head()
+# or save:
+sim_docs.to_csv("path/to/csv_file.csv")
+
 
 ```
 

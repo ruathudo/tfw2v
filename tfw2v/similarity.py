@@ -150,6 +150,8 @@ class TFW2V:
 
         return result
 
+    def save(self, path):
+        pass
 
     def most_similar(self, idx, k=10):
         # map text with the similar docs given a doc id
@@ -158,4 +160,3 @@ class TFW2V:
         # convert text to dataframe
         sub = self.se.iloc[indices][:k]
         return sub
-
