@@ -3,6 +3,7 @@ import itertools
 import pandas as pd
 
 from multiprocessing import cpu_count
+import parmap
 
 from gensim.models import TfidfModel
 from gensim.corpora import Dictionary
@@ -66,7 +67,7 @@ class TFW2V:
         vecs = tfidf[corpus]
 
         # dictionary.save(os.path.join(model_dir, 'dictionary.dict'))
-        print('trained tf-idf')
+        # print('trained tf-idf')
 
         return dictionary, vecs
 
@@ -87,9 +88,51 @@ class TFW2V:
         # if save_path:
         #     model.save(os.path.join(save_path))
 
-        print('trained word2vec')
+        # print('trained word2vec')
 
         return model
+
+    def _recalculate(self, doc_id, vecs, sim_index, dictionary, wv, min_tfidf=0.1, lim_token=20, alpha=0.1):
+        vec = vecs[doc_id]
+        tokens = sorted(vec, key=lambda x: x[1], reverse=True) # (token_id, tf_score)
+        filterred_tokens = list(filter(lambda x: x[1] <= min_tfidf, tokens))
+        tokens = filterred_tokens if len(filterred_tokens) else tokens[:lim_token]
+        
+        sim_docs = sim_index[vec]
+        
+#         if doc_id < 3:
+#             print(sim_docs)
+        
+        new_sim_docs = []
+        
+        compared_words = [dictionary[x[0]] for x in tokens]
+        #print(compared_words, '\n')
+        
+        for i, s in sim_docs:   # doc_id, cosine similarity score
+            sim_vec = vecs[i]
+            #sim_limit =  int(frac * len(sim_vec))
+            sim_tokens = sorted(sim_vec, key=lambda x: x[1], reverse=True) # (token_id, tf_score)
+            filterred_sim_tokens = list(filter(lambda x: x[1] <= min_tfidf, sim_tokens))
+            sim_tokens = filterred_sim_tokens if len(filterred_sim_tokens) else sim_tokens[:lim_token]
+            
+            sim_words = [dictionary[x[0]] for x in sim_tokens]
+            
+            #print(sim_words, '\n')
+            
+            sim_score = wv.n_similarity(compared_words, sim_words)
+            
+            new_sim_docs.append((i, (sim_score * alpha + s) / (1 + alpha)))
+
+#             if doc_id < 3:
+#                 print(compared_words, '\n')
+#                 print(sim_words, '\n')
+#                 print(sim_score, '\n')
+#                 print('current sim score', s, '\n')
+#                 print('new sim score', new_sim_docs[i], '\n')
+
+        new_sim_docs = sorted(new_sim_docs, key=lambda x: x[1], reverse=True)
+
+        return new_sim_docs
 
 
     def _enrich_tfidf(self, wv, min_tfidf=0.1, lim_token=20, alpha=0.1, lim_most=1):
@@ -107,46 +150,8 @@ class TFW2V:
         # for each top n words in this doc, compare with top m words in other docs
         # calculate the bonus point by combining tfidf score and similarity score from w2v model
         # save bonus point in a list, add up later to the sim matrix
-        for doc_id, vec in enumerate(vecs):
-            #limit_num = int(frac * len(vec))
-            tokens = sorted(vec, key=lambda x: x[1], reverse=True) # (token_id, tf_score)
-            filterred_tokens = list(filter(lambda x: x[1] <= min_tfidf, tokens))
-            tokens = filterred_tokens if len(filterred_tokens) else tokens[:lim_token]
-            
-            sim_docs = sim_index[vec]
-            
-    #         if doc_id < 3:
-    #             print(sim_docs)
-            
-            new_sim_docs = []
-            
-            compared_words = [dictionary[x[0]] for x in tokens]
-            #print(compared_words, '\n')
-            
-            for i, s in sim_docs:   # doc_id, cosine similarity score
-                sim_vec = vecs[i]
-                #sim_limit =  int(frac * len(sim_vec))
-                sim_tokens = sorted(sim_vec, key=lambda x: x[1], reverse=True) # (token_id, tf_score)
-                filterred_sim_tokens = list(filter(lambda x: x[1] <= min_tfidf, sim_tokens))
-                sim_tokens = filterred_sim_tokens if len(filterred_sim_tokens) else sim_tokens[:lim_token]
-                
-                sim_words = [dictionary[x[0]] for x in sim_tokens]
-                
-                #print(sim_words, '\n')
-                
-                sim_score = wv.n_similarity(compared_words, sim_words)
-                
-                new_sim_docs.append((i, (sim_score * alpha + s) / (1 + alpha)))
-
-    #             if doc_id < 3:
-    #                 print(compared_words, '\n')
-    #                 print(sim_words, '\n')
-    #                 print(sim_score, '\n')
-    #                 print('current sim score', s, '\n')
-    #                 print('new sim score', new_sim_docs[i], '\n')
-
-            new_sim_docs = sorted(new_sim_docs, key=lambda x: x[1], reverse=True)
-            result[doc_id] = new_sim_docs
+        doc_ids = range(corpus_size)
+        result = parmap.map(self._recalculate, doc_ids, vecs, sim_index, dictionary, wv, min_tfidf=min_tfidf, lim_token=lim_token, alpha=alpha)
 
         return result
 
