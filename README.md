@@ -64,3 +64,12 @@ sim_docs.to_csv("path/to/csv_file.csv")
 - **lim_token**: limit number of tokens assumed as important words in case no token meet the min_tfidf score requirement. Default 20.
 - **alpha**: the factor to adjust how much information from word2vec will affect the similarity score from tf-idf. Smaller alpha means to expect less impact. Larger alpha means to expect more surprising result. Default 0.1.
 - **lim_most**: Given a doc, only re-calculate the ranking for top N percentages of most similar docs. This help the algorithm run faster. It also help to avoid the too surprising result when re-ranking the bottom of the list (least similar docs). Default 1 (all docs). Recommend 0.2 (top 20% docs).
+
+** Development
+
+- To build the package, go to the source folder and run:  
+  ``python -m build``
+- To upload the package to pypi:  
+  ``python -m twine upload --repository pypi dist/*``
+- Install the new version:  
+  ``pip install --no-deps -U tfw2v``
