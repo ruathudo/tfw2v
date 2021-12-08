@@ -1,4 +1,4 @@
-from logging import error
+import pickle
 import itertools
 import pandas as pd
 
@@ -16,7 +16,6 @@ from gensim.summarization.textcleaner import split_sentences
 class TFW2V:
     def __init__(self):
 
-        self.wv = None
         self.se = None
         self.vecs = None
         self.dictionary = None
@@ -53,6 +52,7 @@ class TFW2V:
             tokens = tokens.apply(lambda x: [w for w in x if w not in stopwords])
 
         return se, tokens
+
 
     def _train_tfidf(self, tokens):
         # tokens is series data type of tokenized text of each document
@@ -91,6 +91,7 @@ class TFW2V:
         # print('trained word2vec')
 
         return model
+
 
     def _recalculate(self, doc_id, vecs, sim_index, dictionary, wv, min_tfidf=0.1, lim_token=20, alpha=0.1):
         vec = vecs[doc_id]
@@ -155,8 +156,28 @@ class TFW2V:
 
         return result
 
+
     def save(self, path):
-        pass
+        with open(path + '_vecs.pkl', 'wb') as fp:
+            pickle.dump(self.vecs, fp)
+
+        with open(path + '_result.pkl', 'wb') as fp:
+            pickle.dump(self.result, fp)
+
+        self.dictionary.save(path + '_dictionary.pkl')
+        self.se.to_pickle(path + '_text.pkl')
+
+
+    def load(self, path):
+        self.dictionary = Dictionary.load(path + '_dictionary.pkl')
+        self.se = pd.read_pickle(path + '_text.pkl')
+
+        with open(path + '_vecs.pkl', 'rb') as fp:
+            self.vecs = pickle.load(fp)
+
+        with open(path + '_result.pkl', 'rb') as fp:
+            self.result = pickle.load(fp)
+        
 
     def most_similar(self, idx, k=10):
         # map text with the similar docs given a doc id
