@@ -90,4 +90,17 @@ model.load("path/to/tfw2v")
 
 ## Cite ##
 **This works is on behalf of following paper:**  
-Quan Duong, Mika Hämäläinen, and Khalid Alnajjar. (2019). TFW2V: An Enhanced Document Similarity Method for the Morphologically Rich Finnish Language. In the Proceedings of the 1st on Natural Language Processing for Digital Humanities (NLP4DH).
+Quan Duong, Mika Hämäläinen, and Khalid Alnajjar. (2021). TFW2V: An Enhanced Document Similarity Method for the Morphologically Rich Finnish Language. In the Proceedings of the 1st on Natural Language Processing for Digital Humanities (NLP4DH).
+
+**BibTex:**
+```
+@inproceedings{duong-etal-2021-tfw2v,
+    title = "TFW2V: An Enhanced Document Similarity Method for the Morphologically Rich Finnish Language",
+    author = {Duong, Quan  and
+      H{\"a}m{\"a}l{\"a}inen, Mika  and
+      Alnajjar, Khalid},
+    booktitle = "Proceedings of the 1st Workshop on Natural Language Processing for Digital Humanities (NLP4DH)",
+    month = dec,
+    year = "2021"
+}
+```
